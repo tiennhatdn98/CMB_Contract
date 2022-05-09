@@ -74,7 +74,7 @@ contract CMB {
     /** 
      *  @notice Set Client of payment by payment ID
      * 
-     *  @dev    Only Business Owner can call this function. 
+     *  @dev    Only Business Owner can call this function and payment needs to be initialized. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
@@ -86,7 +86,7 @@ contract CMB {
     /** 
      *  @notice Set encrypt data of payment by payment ID
      * 
-     *  @dev    Only Business Owner can call this function. 
+     *  @dev    Only Business Owner can call this function and payment needs to be initialized. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
@@ -98,7 +98,7 @@ contract CMB {
     /** 
      *  @notice Set amount of payment by payment ID
      * 
-     *  @dev    Only Business Owner can call this function. 
+     *  @dev    Only Business Owner can call this function and payment needs to be initialized. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
@@ -123,7 +123,6 @@ contract CMB {
             msg.sender != client, 
             "Business Owner and Client can not be same"
         );
-        // require(client != address(0), "Fake address");
 
         payments[paymentId] = Payment(msg.sender, client, data, amount, Status.INITIAL);
         emit RequestPayment(paymentId, msg.sender, client, data, amount);
