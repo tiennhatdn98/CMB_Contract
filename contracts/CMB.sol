@@ -56,8 +56,9 @@ contract CMB is Ownable {
         _;
     }
 
-    constructor() {
-        serviceFee = 0.02 ether;
+    constructor(address _owner, uint256 _serviceFee) {
+        _transferOwnership(_owner);
+        serviceFee = _serviceFee;
     }
 
     /** 
@@ -92,7 +93,7 @@ contract CMB is Ownable {
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
      */ 
-    function setClient(uint256 paymentId, address _client) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) {
+    function setClient(uint256 paymentId, address _client) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) onlyValidAddress(_client) {
         payments[paymentId].client = _client;
     }
 
@@ -136,7 +137,6 @@ contract CMB is Ownable {
             msg.sender != client, 
             "Business Owner and Client can not be same"
         );
-        require(amount > 0, "Amount must be greater than 0");
 
         payments[paymentId] = Payment(msg.sender, client, data, amount, Status.INITIAL);
         emit RequestPayment(paymentId, msg.sender, client, data, amount);
