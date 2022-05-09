@@ -13,7 +13,7 @@ contract CMB {
     /*
      * Status:
      * After BO creates payment: INITIAL,
-     * After Client escrows money: ESCROWED,
+     * After Client escrows money: PAID,
      * After Client confirm to release money: CONFIRMED
      * After BO release money: RELEASED
      * After Client withdraw money: FINISHED
