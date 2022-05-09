@@ -1,17 +1,22 @@
 // Loading env configs for deploying and public contract source
 require("dotenv").config();
+
 // Using hardhat-ethers plugin for deploying
 // See here: https://hardhat.org/plugins/nomiclabs-hardhat-ethers.html
 // https://hardhat.org/guides/deploying.html
 require("@nomiclabs/hardhat-ethers");
+
 // Testing plugins with Waffle
 // See here: https://hardhat.org/guides/waffle-testing.html
 require("@nomiclabs/hardhat-waffle");
+
 // This plugin runs solhint on the project's sources and prints the report
 // See here: https://hardhat.org/plugins/nomiclabs-hardhat-solhint.html
 require("@nomiclabs/hardhat-solhint");
+
 // Verify and public source code on etherscan
 require("@nomiclabs/hardhat-etherscan");
+
 require("@openzeppelin/hardhat-upgrades");
 const config = {
   defaultNetwork: "hardhat",
@@ -51,4 +56,5 @@ const config = {
     reporterOptions: { configFile: "./mocha-report.json" },
   },
 };
+
 module.exports = config;
