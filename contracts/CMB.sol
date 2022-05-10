@@ -2,8 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract CMB is Ownable {
+contract CMB is Ownable, ReentrancyGuard {
+    /*
+     *  @notice Payment struct is information of payment includes: address of business owner and client, encrypt sensitive data, amount and status of payment
+     */
     struct Payment {
         address bo;
         address client;
@@ -20,17 +26,41 @@ contract CMB is Ownable {
      * After BO release money: RELEASED
      * After Client withdraw money: FINISHED
     */
+
+    /**         Case                                Value
+     *           |                                    |
+     *  After Business Owner creates payment        INITIAL
+     *  After Client escrows money                  PAID
+     *  After Client confirm to release money       CONFIRMED
+     *  After Business Owner release money          RELEASED
+     *  After Client withdraw money                 FINISHED
+     */
     enum Status { INITIAL, PAID, CONFIRMED, RELEASED, FINISHED }
 
+    /**
+     *  @notice Mapping payment ID to a payment detail
+     */
     mapping(uint256 => Payment) public payments;
+
+    /**
+     *  @notice serviceFeeTotal unit256 is total of service fee
+     */
     uint256 public serviceFeeTotal;
+
+    /**
+     *  @notice serviceFee uint256 is service fee of each payment
+     */
     uint256 public serviceFee;
 
-    event RequestPayment(uint256 indexed paymentId, address indexed bo, address indexed client, bytes32 data, uint256 amount);
-    event Pay(uint256 indexed paymentId);
-    event ConfirmToRelease(uint256 indexed paymentId);
-    event Claim(uint256 indexed paymentId);
-    event WithdrawServiceFee(uint256 amount, address indexed fundingReceiver);
+    event RequestedPayment(uint256 indexed paymentId, address indexed bo, address indexed client, bytes32 data, uint256 amount);
+    event Paid(uint256 indexed paymentId);
+    event ConfirmedToRelease(uint256 indexed paymentId);
+    event Claimed(uint256 indexed paymentId);
+    event WithdrawnServiceFee(uint256 amount, address indexed fundingReceiver);
+
+    event SetClient(address oldClient, address newClient);
+    event SetData(bytes32 oldData, bytes32 newData);
+    event SetAmount(uint256 oldAmount, uint256 newAmount);
 
     modifier onlyValidAddress(address _address) {
         uint32 size;
@@ -42,12 +72,12 @@ contract CMB is Ownable {
     }
 
     modifier onlyBusinessOwner(uint256 paymentId) {
-        require(msg.sender == payments[paymentId].bo, "Only Business Owner can do it");
+        require(_msgSender() == payments[paymentId].bo, "Only Business Owner can do it");
         _;
     }
 
-    modifier onlyClient(uint256 paymentId) {
-        require(msg.sender == payments[paymentId].client, "Only Client can do it");
+    modifier onlyClient(uint256 paymentId) { 
+        require(_msgSender() == payments[paymentId].client, "Only Client can do it");
         _;
     }
 
@@ -57,7 +87,7 @@ contract CMB is Ownable {
     }
 
     constructor(address _owner, uint256 _serviceFee) {
-        _transferOwnership(_owner);
+        transferOwnership(_owner);
         serviceFee = _serviceFee;
     }
 
@@ -68,6 +98,9 @@ contract CMB is Ownable {
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to get fee 
+     *
+     *          Type        Meaning
+     *  @return uint256     Amount of payment by payment ID 
      */ 
     function getPaymentAmount(uint256 paymentId) external view returns (uint256) {
         return payments[paymentId].amount;
@@ -79,9 +112,10 @@ contract CMB is Ownable {
      *  @dev    Only owner can call this function. 
      * 
      *          Name        Meaning 
-     *  @param  _amount     Amount of service fee that want to update 
+     *  @param  _amount     Amount of service fee that want to be updated
      */ 
     function setServiceFee(uint256 _amount) external onlyOwner {
+        require(_amount > 0, "Service fee must be greather than 0");
         serviceFee = _amount;
     }
 
@@ -94,7 +128,9 @@ contract CMB is Ownable {
      *  @param  paymentId   ID of payment that needs to be updated 
      */ 
     function setClient(uint256 paymentId, address _client) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) onlyValidAddress(_client) {
+        address oldClient = payments[paymentId].client;
         payments[paymentId].client = _client;
+        emit SetClient(oldClient, _client);
     }
 
     /** 
@@ -106,7 +142,9 @@ contract CMB is Ownable {
      *  @param  paymentId   ID of payment that needs to be updated 
      */ 
     function setData(uint256 paymentId, bytes32 _data) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) {
+        bytes32 oldData = payments[paymentId].data;
         payments[paymentId].data = _data;
+        emit SetData(oldData, _data);
     }
 
     /** 
@@ -118,7 +156,10 @@ contract CMB is Ownable {
      *  @param  paymentId   ID of payment that needs to be updated 
      */ 
     function setAmount(uint256 paymentId, uint256 _amount) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) {
+        require(_amount > 0, "Amount must be greater than 0");
+        uint256 oldAmount = payments[paymentId].amount;
         payments[paymentId].amount = _amount;
+        emit SetAmount(oldAmount, _amount);
     }
 
     /** 
@@ -134,12 +175,12 @@ contract CMB is Ownable {
      */
     function requestPayment(uint256 paymentId, address client, bytes32 data, uint256 amount) external onlyValidAddress(client) {
         require(
-            msg.sender != client, 
+            _msgSender() != client, 
             "Business Owner and Client can not be same"
         );
 
-        payments[paymentId] = Payment(msg.sender, client, data, amount, Status.INITIAL);
-        emit RequestPayment(paymentId, msg.sender, client, data, amount);
+        payments[paymentId] = Payment(_msgSender(), client, data, amount, Status.INITIAL);
+        emit RequestedPayment(paymentId, _msgSender(), client, data, amount);
     }
 
     /** 
@@ -158,11 +199,11 @@ contract CMB is Ownable {
 
         payments[paymentId].status = Status.PAID;
         serviceFeeTotal += serviceFee;
-        emit Pay(paymentId);
+        emit Paid(paymentId);
     }
 
     /** 
-     *  @notice Confirm to release money
+     *  @notice Client confirm to release money
      * 
      *  @dev    Only Client can call this function. 
      * 
@@ -173,23 +214,23 @@ contract CMB is Ownable {
         require(payments[paymentId].status == Status.PAID, "This payment needs to paid by client");
         
         payments[paymentId].status = Status.CONFIRMED;
-        emit ConfirmToRelease(paymentId);
+        emit ConfirmedToRelease(paymentId);
     }
 
     /** 
-     *  @notice Claim payment
+     *  @notice Business Owner claim payment
      * 
      *  @dev    Only Business Owner can call this function. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
      */
-    function claim(uint256 paymentId) external payable onlyBusinessOwner(paymentId) {
+    function claim(uint256 paymentId) external payable onlyBusinessOwner(paymentId) nonReentrant {
         require(payments[paymentId].status == Status.CONFIRMED, "This payment needs to confirmed by client");
 
         payments[paymentId].status = Status.RELEASED;
-        payable(msg.sender).transfer(payments[paymentId].amount);
-        emit Claim(paymentId);
+        payable(_msgSender()).transfer(payments[paymentId].amount);
+        emit Claimed(paymentId);
     }
 
     /** 
@@ -201,11 +242,12 @@ contract CMB is Ownable {
      *  @param  _amount             Amount of service fee that want to withdraw
      *  @param  _fundingReceiver    Address that want to transfer
      */
-    function withdrawServiceFee(uint256 _amount, address _fundingReceiver) external payable onlyOwner {
+    function withdrawServiceFee(uint256 _amount, address _fundingReceiver) external payable onlyOwner onlyValidAddress(_fundingReceiver) {
+        require(_amount > 0, "Amount must be greater than 0");
         require(_amount <= serviceFeeTotal, "Not enough to withdraw");
 
         serviceFeeTotal -= _amount;
         payable(_fundingReceiver).transfer(_amount);
-        emit WithdrawServiceFee(_amount, _fundingReceiver);
+        emit WithdrawnServiceFee(_amount, _fundingReceiver);
     }
 }
