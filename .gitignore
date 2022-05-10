@@ -8,4 +8,6 @@ typechain
 cache
 artifacts
 
+test-results
+
 .prettierrc

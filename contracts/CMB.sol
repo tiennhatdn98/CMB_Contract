@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+// import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+// import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract CMB is Ownable, ReentrancyGuard {
+contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /*
      *  @notice Payment struct is information of payment includes: address of business owner and client, encrypt sensitive data, amount and status of payment
      */
@@ -18,24 +19,16 @@ contract CMB is Ownable, ReentrancyGuard {
         Status status;
     }
 
-    /*
-     * Status:
-     * After BO creates payment: INITIAL,
-     * After Client escrows money: PAID,
-     * After Client confirm to release money: CONFIRMED
-     * After BO release money: RELEASED
-     * After Client withdraw money: FINISHED
-    */
-
-    /**         Case                                Value
+    /**
+     *  Status enum
+     *          Case                                Value
      *           |                                    |
      *  After Business Owner creates payment        INITIAL
      *  After Client escrows money                  PAID
      *  After Client confirm to release money       CONFIRMED
-     *  After Business Owner release money          RELEASED
-     *  After Client withdraw money                 FINISHED
+     *  After Business Owner claim money            CLAIMED
      */
-    enum Status { INITIAL, PAID, CONFIRMED, RELEASED, FINISHED }
+    enum Status { INITIAL, PAID, CONFIRMED, CLAIMED }
 
     /**
      *  @notice Mapping payment ID to a payment detail
@@ -61,6 +54,7 @@ contract CMB is Ownable, ReentrancyGuard {
     event SetClient(address oldClient, address newClient);
     event SetData(bytes32 oldData, bytes32 newData);
     event SetAmount(uint256 oldAmount, uint256 newAmount);
+    event SetServiceFee(uint256 oldAmount, uint256 newAmount);
 
     modifier onlyValidAddress(address _address) {
         uint32 size;
@@ -86,7 +80,13 @@ contract CMB is Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address _owner, uint256 _serviceFee) {
+    // constructor(address _owner, uint256 _serviceFee) {
+    //     transferOwnership(_owner);
+    //     serviceFee = _serviceFee;
+    // }
+
+    function initialize(address _owner, uint256 _serviceFee) public initializer {
+        OwnableUpgradeable.__Ownable_init();
         transferOwnership(_owner);
         serviceFee = _serviceFee;
     }
@@ -116,7 +116,9 @@ contract CMB is Ownable, ReentrancyGuard {
      */ 
     function setServiceFee(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Service fee must be greather than 0");
+        uint256 oldAmount = serviceFee;
         serviceFee = _amount;
+        emit SetServiceFee(oldAmount, _amount);
     }
 
     /** 
@@ -191,7 +193,7 @@ contract CMB is Ownable, ReentrancyGuard {
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
      */
-    function pay(uint256 paymentId) external payable onlyClient(paymentId) onlyOnInitialPayment(paymentId) {
+    function pay(uint256 paymentId) external payable onlyClient(paymentId) onlyOnInitialPayment(paymentId) nonReentrant {
         require(
             msg.value == payments[paymentId].amount + serviceFee, 
             "Not enough fee according to payment"
@@ -228,7 +230,7 @@ contract CMB is Ownable, ReentrancyGuard {
     function claim(uint256 paymentId) external payable onlyBusinessOwner(paymentId) nonReentrant {
         require(payments[paymentId].status == Status.CONFIRMED, "This payment needs to confirmed by client");
 
-        payments[paymentId].status = Status.RELEASED;
+        payments[paymentId].status = Status.CLAIMED;
         payable(_msgSender()).transfer(payments[paymentId].amount);
         emit Claimed(paymentId);
     }
