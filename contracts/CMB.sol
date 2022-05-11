@@ -19,7 +19,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     /**
      *  Status enum
-     *          Case                                Value
+     *          Suit                                Value
      *           |                                    |
      *  After Business Owner creates payment        INITIAL
      *  After Client escrows money                  PAID
@@ -44,7 +44,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     uint256 public serviceFee;
 
     /**
-     *  @notice lastPaymentId uint256 is the latest requested payment ID started by 0
+     *  @notice lastPaymentId uint256 is the latest requested payment ID started by 1
      */
     uint256 public lastPaymentId;
 

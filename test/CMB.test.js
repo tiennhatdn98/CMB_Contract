@@ -44,8 +44,11 @@ describe('CMB - Unit test', () => {
     it('Should request payment successfully', async () => {
       const tx = await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
-      const payment = await cmbContract.payments(paymentId);
+        .requestPayment(client.address, data, amount);
+
+      const lastPaymentId = await cmbContract.lastPaymentId();
+      const payment = await cmbContract.payments(lastPaymentId);
+      expect(lastPaymentId).to.equal(1);
       expect(await payment.bo).to.equal(bo.address);
       expect(await payment.client).to.equal(client.address);
       expect(await payment.data).to.equal(data);
@@ -57,14 +60,14 @@ describe('CMB - Unit test', () => {
     it('Should request payment fail when client address is invalid', async () => {
       const tx = cmbContract
         .connect(bo)
-        .requestPayment(paymentId, ZERO_ADDRESS, data, amount);
+        .requestPayment(ZERO_ADDRESS, data, amount);
       await expect(tx).to.be.revertedWith('Invalid address');
     });
 
     it('Should request payment fail when client address and business owner address are same', async () => {
       const tx = cmbContract
         .connect(bo)
-        .requestPayment(paymentId, bo.address, data, amount);
+        .requestPayment(bo.address, data, amount);
       await expect(tx).to.be.revertedWith(
         'Business Owner and Client can not be same',
       );
@@ -76,12 +79,13 @@ describe('CMB - Unit test', () => {
       const serviceFeeTotalBefore = await cmbContract.serviceFeeTotal();
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
       await cmbContract
         .connect(client)
         .pay(paymentId, { value: amount + serviceFee });
 
-      const payment = await cmbContract.payments(paymentId);
+      const lastPaymentId = await cmbContract.lastPaymentId();
+      const payment = await cmbContract.payments(lastPaymentId);
       const serviceFeeTotalAfter = await cmbContract.serviceFeeTotal();
       expect(await payment.status).to.equal(PAID_STATUS);
       expect(serviceFeeTotalAfter).to.equal(
@@ -93,26 +97,29 @@ describe('CMB - Unit test', () => {
     it('Should be fail when caller is not client', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = await cmbContract.lastPaymentId();
       await expect(
         cmbContract
           .connect(stranger)
-          .pay(paymentId, { value: amount + serviceFee }),
+          .pay(lastPaymentId, { value: amount + serviceFee }),
       ).to.be.revertedWith('Only Client can do it');
     });
 
     it('Should be fail when this payment is not requested', async () => {
+      const lastPaymentId = await cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(client).pay(paymentId, { value: amount }),
+        cmbContract.connect(client).pay(lastPaymentId, { value: amount }),
       ).to.be.revertedWith('Only Client can do it');
     });
 
     it('Should be fail when client not pay enough amount', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = await cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(client).pay(paymentId, { value: amount }),
+        cmbContract.connect(client).pay(lastPaymentId, { value: amount }),
       ).to.be.revertedWith('Not enough fee according to payment');
     });
   });
@@ -121,13 +128,14 @@ describe('CMB - Unit test', () => {
     it('Should confirm to release successfully, status will change to CONFIRMED', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
-      await cmbContract.connect(client).confirmToRelease(paymentId);
+        .pay(lastPaymentId, { value: amount + serviceFee });
+      await cmbContract.connect(client).confirmToRelease(lastPaymentId);
 
-      const payment = await cmbContract.payments(paymentId);
+      const payment = await cmbContract.payments(lastPaymentId);
       expect(await payment.status).to.equal(CONFIRMED_STATUS);
       expect(cmbContract).to.emit('ConfirmedToRelease');
     });
@@ -135,22 +143,23 @@ describe('CMB - Unit test', () => {
     it('Should be fail when caller is not client', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
+        .pay(lastPaymentId, { value: amount + serviceFee });
       await expect(
-        cmbContract.connect(bo).confirmToRelease(paymentId),
+        cmbContract.connect(bo).confirmToRelease(lastPaymentId),
       ).to.be.revertedWith('Only Client can do it');
     });
 
     it('Should be fail when this payment is not paid by client', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
-
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(client).confirmToRelease(paymentId),
+        cmbContract.connect(client).confirmToRelease(lastPaymentId),
       ).to.be.revertedWith('This payment needs to paid by client');
     });
   });
@@ -159,14 +168,15 @@ describe('CMB - Unit test', () => {
     it('Should claim successfully, status will change to CLAIMED', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
-      await cmbContract.connect(client).confirmToRelease(paymentId);
-      await cmbContract.connect(bo).claim(paymentId);
+        .pay(lastPaymentId, { value: amount + serviceFee });
+      await cmbContract.connect(client).confirmToRelease(lastPaymentId);
+      await cmbContract.connect(bo).claim(lastPaymentId);
 
-      const payment = await cmbContract.payments(paymentId);
+      const payment = await cmbContract.payments(lastPaymentId);
       expect(await payment.status).to.equal(CLAIMED_STATUS);
       expect(cmbContract).to.emit('Claimed');
     });
@@ -174,26 +184,28 @@ describe('CMB - Unit test', () => {
     it('Should be fail when caller is not business owner', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
-      await cmbContract.connect(client).confirmToRelease(paymentId);
+        .pay(lastPaymentId, { value: amount + serviceFee });
+      await cmbContract.connect(client).confirmToRelease(lastPaymentId);
       await expect(
-        cmbContract.connect(client).claim(paymentId),
+        cmbContract.connect(client).claim(lastPaymentId),
       ).to.be.revertedWith('Only Business Owner can do it');
     });
 
     it('Should be fail when this payment is not confirmed by client', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
-      await expect(cmbContract.connect(bo).claim(paymentId)).to.be.revertedWith(
-        'This payment needs to confirmed by client',
-      );
+        .pay(lastPaymentId, { value: amount + serviceFee });
+      await expect(
+        cmbContract.connect(bo).claim(lastPaymentId),
+      ).to.be.revertedWith('This payment needs to confirmed by client');
     });
   });
 
@@ -203,13 +215,14 @@ describe('CMB - Unit test', () => {
 
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
+        .pay(lastPaymentId, { value: amount + serviceFee });
 
       const boBalanceBefore = await provider.getBalance(bo.address);
-      console.log('BO balance before: ', boBalanceBefore);
+      // console.log('BO balance before: ', boBalanceBefore);
       const serviceFeeTotalBefore = await cmbContract.serviceFeeTotal();
 
       await cmbContract
@@ -218,7 +231,7 @@ describe('CMB - Unit test', () => {
 
       const serviceFeeTotalAfter = await cmbContract.serviceFeeTotal();
       const boBalanceAfter = await provider.getBalance(bo.address);
-      console.log('BO balance After: ', boBalanceAfter);
+      // console.log('BO balance After: ', boBalanceAfter);
 
       expect(serviceFeeTotalBefore).to.equal(serviceFeeTotalAfter.add(amount));
       expect(cmbContract).to.emit('WithdrawnServiceFee');
@@ -229,10 +242,11 @@ describe('CMB - Unit test', () => {
 
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
+        .pay(lastPaymentId, { value: amount + serviceFee });
 
       await expect(
         cmbContract
@@ -245,10 +259,11 @@ describe('CMB - Unit test', () => {
       const amountFee = 10000000000000;
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
+        .pay(lastPaymentId, { value: amount + serviceFee });
 
       await expect(
         cmbContract
@@ -261,10 +276,11 @@ describe('CMB - Unit test', () => {
       const amountFee = 10000000000000;
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
+        .pay(lastPaymentId, { value: amount + serviceFee });
 
       await expect(
         cmbContract
@@ -277,10 +293,11 @@ describe('CMB - Unit test', () => {
       const amountFee = 10000000000000;
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract
         .connect(client)
-        .pay(paymentId, { value: amount + serviceFee });
+        .pay(lastPaymentId, { value: amount + serviceFee });
 
       await expect(
         cmbContract.connect(bo).withdrawServiceFee(amountFee, ZERO_ADDRESS),
@@ -292,13 +309,15 @@ describe('CMB - Unit test', () => {
     it('Should get payment amount successfully', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
-      const paymentAmount = await cmbContract.getPaymentAmount(paymentId);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
+      const paymentAmount = await cmbContract.getPaymentAmount(lastPaymentId);
       expect(paymentAmount).to.equal(amount);
     });
 
     it('Should be zero when this payment is not requested', async () => {
-      const paymentAmount = await cmbContract.getPaymentAmount(paymentId);
+      const lastPaymentId = cmbContract.lastPaymentId();
+      const paymentAmount = await cmbContract.getPaymentAmount(lastPaymentId);
       expect(paymentAmount).to.equal(0);
     });
   });
@@ -327,10 +346,11 @@ describe('CMB - Unit test', () => {
     it('Should set client successfully', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
-      await cmbContract.connect(bo).setClient(paymentId, client2.address);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
+      await cmbContract.connect(bo).setClient(lastPaymentId, client2.address);
 
-      const payment = await cmbContract.payments(paymentId);
+      const payment = await cmbContract.payments(lastPaymentId);
       expect(payment.client).to.equal(client2.address);
       expect(cmbContract).to.emit('SetClient');
     });
@@ -338,24 +358,27 @@ describe('CMB - Unit test', () => {
     it('Should be fail when caller is not business owner', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(client).setClient(paymentId, client2.address),
+        cmbContract.connect(client).setClient(lastPaymentId, client2.address),
       ).to.be.revertedWith('Only Business Owner can do it');
     });
 
     it('Should be fail when client is an invalid address', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(bo).setClient(paymentId, ZERO_ADDRESS),
+        cmbContract.connect(bo).setClient(lastPaymentId, ZERO_ADDRESS),
       ).to.be.revertedWith('Invalid address');
     });
 
     it('Should be fail when this payment is not created', async () => {
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(bo).setClient(paymentId, ZERO_ADDRESS),
+        cmbContract.connect(bo).setClient(lastPaymentId, ZERO_ADDRESS),
       ).to.be.revertedWith('Only Business Owner can do it');
     });
   });
@@ -366,10 +389,11 @@ describe('CMB - Unit test', () => {
     it('Should set data successfully', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
-      await cmbContract.connect(bo).setData(paymentId, newData);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
+      await cmbContract.connect(bo).setData(lastPaymentId, newData);
 
-      const payment = await cmbContract.payments(paymentId);
+      const payment = await cmbContract.payments(lastPaymentId);
       expect(payment.data).to.equal(newData);
       expect(cmbContract).to.emit('SetData');
     });
@@ -377,15 +401,17 @@ describe('CMB - Unit test', () => {
     it('Should be fail when caller is not business owner', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(client).setData(paymentId, newData),
+        cmbContract.connect(client).setData(lastPaymentId, newData),
       ).to.be.revertedWith('Only Business Owner can do it');
     });
 
     it('Should be fail when this payment is not created', async () => {
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(bo).setData(paymentId, newData),
+        cmbContract.connect(bo).setData(lastPaymentId, newData),
       ).to.be.revertedWith('Only Business Owner can do it');
     });
   });
@@ -395,10 +421,11 @@ describe('CMB - Unit test', () => {
     it('Should set data successfully', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
-      await cmbContract.connect(bo).setAmount(paymentId, newAmount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
+      await cmbContract.connect(bo).setAmount(lastPaymentId, newAmount);
 
-      const payment = await cmbContract.payments(paymentId);
+      const payment = await cmbContract.payments(lastPaymentId);
       expect(payment.amount).to.equal(newAmount);
       expect(cmbContract).to.emit('SetAmount');
     });
@@ -406,15 +433,17 @@ describe('CMB - Unit test', () => {
     it('Should be fail when caller is not business owner', async () => {
       await cmbContract
         .connect(bo)
-        .requestPayment(paymentId, client.address, data, amount);
+        .requestPayment(client.address, data, amount);
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(client).setAmount(paymentId, newAmount),
+        cmbContract.connect(client).setAmount(lastPaymentId, newAmount),
       ).to.be.revertedWith('Only Business Owner can do it');
     });
 
     it('Should be fail when this payment is not created', async () => {
+      const lastPaymentId = cmbContract.lastPaymentId();
       await expect(
-        cmbContract.connect(bo).setAmount(paymentId, newAmount),
+        cmbContract.connect(bo).setAmount(lastPaymentId, newAmount),
       ).to.be.revertedWith('Only Business Owner can do it');
     });
   });

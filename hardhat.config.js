@@ -24,6 +24,10 @@ const config = {
     hardhat: { accounts: { count: 100 } },
     testnet: {
       url: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
+      accounts: [process.env.DEPLOY_ACCOUNT2],
+    },
+    rinkeby: {
+      url: `https://rinkeby.infura.io/v3/e4ab2ea833074771bb6b5cfa1d28955f`,
       accounts: [process.env.DEPLOY_ACCOUNT],
     },
     mainnet: {
@@ -32,7 +36,9 @@ const config = {
       gasPrice: 8000000000,
     },
   },
-  etherscan: { apiKey: process.env.BINANCE_API_KEY },
+  etherscan: {
+    apiKey: process.env.BINANCE_API_KEY,
+  },
   solidity: {
     compilers: [
       {

@@ -1,0 +1,203 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x5673Df8C5E7dD3f74dBf66A29C1AdD2A8D0eFe05",
+    "txHash": "0x66855b6ecb2090a9cbc84dba27aab63463bf75249df8149972aa941b99a2674c"
+  },
+  "proxies": [
+    {
+      "address": "0x5bC92B2150aE18D596826f3cC4fF179e50eDf67c",
+      "txHash": "0x66251bd5d44c258245d35626a8eabdefdaf7acbc7844b3259961af28362b1233",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xa9Ed79ad05fE95Ed3Dc5C001Ec9997C36617321F",
+      "txHash": "0x564402deb1906132b088251389c6eefd8f91dcd4d18e424e87da92eeeba058cd",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xF68cc90ea1Ed7642C89DC6cd05187BEcd8Aa68Ee",
+      "txHash": "0x056fca93c03bf12c3d48dfbb91935c6d3ca0f31bc9604a1cff77689c078286a5",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "b1f148d420aa6c544409997aff0006ea467c70f4d933c7528638e98eb763cedc": {
+      "address": "0x378E7886A33EFD3fd548323DF0f35c5B2b4B9aAb",
+      "txHash": "0xf6d4d88869e024e33d35057b894030d72728f2c30620fe8fe8a5a483271c08b6",
+      "layout": {
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:87"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:74"
+          },
+          {
+            "label": "payments",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_mapping(t_uint256,t_struct(Payment)632_storage)",
+            "contract": "CMB",
+            "src": "contracts\\CMB.sol:36"
+          },
+          {
+            "label": "serviceFeeTotal",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_uint256",
+            "contract": "CMB",
+            "src": "contracts\\CMB.sol:41"
+          },
+          {
+            "label": "serviceFee",
+            "offset": 0,
+            "slot": "153",
+            "type": "t_uint256",
+            "contract": "CMB",
+            "src": "contracts\\CMB.sol:46"
+          },
+          {
+            "label": "lastPaymentId",
+            "offset": 0,
+            "slot": "154",
+            "type": "t_uint256",
+            "contract": "CMB",
+            "src": "contracts\\CMB.sol:51"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_enum(Status)637": {
+            "label": "enum CMB.Status",
+            "members": [
+              "INITIAL",
+              "PAID",
+              "CONFIRMED",
+              "CLAIMED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_uint256,t_struct(Payment)632_storage)": {
+            "label": "mapping(uint256 => struct CMB.Payment)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Payment)632_storage": {
+            "label": "struct CMB.Payment",
+            "members": [
+              {
+                "label": "bo",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "client",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "data",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "status",
+                "type": "t_enum(Status)637",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    }
+  }
+}
