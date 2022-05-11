@@ -24,9 +24,9 @@ async function main() {
     '==================================================================',
   );
 
-  const cmbContract = await CMB.deploy();
-  await cmbContract.deployed();
-  console.log('CMB contract deployed at: ', cmbContract.address);
+  // const cmbContract = await CMB.deploy();
+  // await cmbContract.deployed();
+  // console.log('CMB contract deployed at: ', cmbContract.address);
 
   const cmbProxy = await upgrades.deployProxy(CMB, [bo, serviceFee]);
   await cmbProxy.deployed();
@@ -41,23 +41,11 @@ async function main() {
 
   const contractAddresses = {
     bo: bo.address,
-    cmbContract: cmbContract.address,
     cmbProxy: cmbProxy.address,
     cmbVerify: cmbVerify,
   };
 
   await fs.writeFileSync('contracts.json', JSON.stringify(contractAddresses));
-
-  // const contractAddresses_verify = {
-  //   bo: bo.address,
-  //   cmbContract: cmbContract.address,
-  //   cmbProxy: cmbProxy.address,
-  //   cmbVerify: cmbVerify.address,
-  // };
-  // await fs.writeFileSync(
-  //   'contracts-verify.json',
-  //   JSON.stringify(contractAddresses_verify),
-  // );
 }
 
 main()
