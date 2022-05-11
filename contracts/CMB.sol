@@ -10,6 +10,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *  @notice Payment struct is information of payment includes: address of business owner and client, encrypt sensitive data, amount and status of payment
      */
     struct Payment {
+        uint256 paymentId;
         address bo;
         address client;
         bytes32 data;
@@ -21,12 +22,12 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *  Status enum
      *          Suit                                Value
      *           |                                    |
-     *  After Business Owner creates payment        INITIAL
+     *  After Business Owner requests payment       REQUESTING
      *  After Client escrows money                  PAID
-     *  After Client confirm to release money       CONFIRMED
-     *  After Business Owner claim money            CLAIMED
+     *  After Client confirms to release money      CONFIRMED
+     *  After Business Owner claims money           CLAIMED
      */
-    enum Status { INITIAL, PAID, CONFIRMED, CLAIMED }
+    enum Status { REQUESTING, PAID, CONFIRMED, CLAIMED }
 
     /**
      *  @notice Mapping payment ID to a payment detail
@@ -78,11 +79,19 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         _;
     }
 
-    modifier onlyOnInitialPayment(uint256 paymentId) {
-        require(payments[paymentId].status == Status.INITIAL, "This payment needs to initialized");
+    modifier onlyValidPayment(uint256 paymentId) {
+        require(paymentId > 0 && paymentId <= lastPaymentId, "This payment is invalid");
         _;
     }
 
+    modifier onlyRequestingPayment(uint256 paymentId) {
+        require(payments[paymentId].status == Status.REQUESTING, "This payment needs to be requested");
+        _;
+    }
+
+    /**
+     *  @notice Initialize new logic contract.
+     */
     function initialize(address _owner, uint256 _serviceFee) public initializer {
         OwnableUpgradeable.__Ownable_init();
         transferOwnership(_owner);
@@ -127,7 +136,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
      */ 
-    function setClient(uint256 paymentId, address _client) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) onlyValidAddress(_client) {
+    function setClient(uint256 paymentId, address _client) external onlyValidPayment(paymentId) onlyBusinessOwner(paymentId) onlyRequestingPayment(paymentId) onlyValidAddress(_client) {
         address oldClient = payments[paymentId].client;
         payments[paymentId].client = _client;
         emit SetClient(oldClient, _client);
@@ -141,7 +150,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
      */ 
-    function setData(uint256 paymentId, bytes32 _data) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) {
+    function setData(uint256 paymentId, bytes32 _data) external onlyValidPayment(paymentId) onlyBusinessOwner(paymentId) onlyRequestingPayment(paymentId) {
         bytes32 oldData = payments[paymentId].data;
         payments[paymentId].data = _data;
         emit SetData(oldData, _data);
@@ -155,7 +164,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
      */ 
-    function setAmount(uint256 paymentId, uint256 _amount) external onlyBusinessOwner(paymentId) onlyOnInitialPayment(paymentId) {
+    function setAmount(uint256 paymentId, uint256 _amount) external onlyValidPayment(paymentId) onlyBusinessOwner(paymentId) onlyRequestingPayment(paymentId) {
         require(_amount > 0, "Amount must be greater than 0");
         uint256 oldAmount = payments[paymentId].amount;
         payments[paymentId].amount = _amount;
@@ -177,20 +186,20 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
             _msgSender() != client, 
             "Business Owner and Client can not be same"
         );
-
-        payments[++lastPaymentId] = Payment(_msgSender(), client, data, amount, Status.INITIAL);
+        lastPaymentId++;
+        payments[lastPaymentId] = Payment(lastPaymentId, _msgSender(), client, data, amount, Status.REQUESTING);
         emit RequestedPayment(lastPaymentId, _msgSender(), client, data, amount);
     }
 
     /** 
-     *  @notice Make payment
+     *  @notice Client make payment
      * 
      *  @dev    Only Client can call this function. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
      */
-    function pay(uint256 paymentId) external payable onlyClient(paymentId) onlyOnInitialPayment(paymentId) nonReentrant {
+    function pay(uint256 paymentId) external payable onlyValidPayment(paymentId) onlyClient(paymentId) nonReentrant {
         require(
             msg.value == payments[paymentId].amount + serviceFee, 
             "Not enough fee according to payment"
@@ -209,7 +218,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
      */
-    function confirmToRelease(uint256 paymentId) external onlyClient(paymentId) {
+    function confirmToRelease(uint256 paymentId) external onlyValidPayment(paymentId) onlyClient(paymentId) {
         require(payments[paymentId].status == Status.PAID, "This payment needs to paid by client");
         
         payments[paymentId].status = Status.CONFIRMED;
@@ -224,7 +233,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
      */
-    function claim(uint256 paymentId) external payable onlyBusinessOwner(paymentId) nonReentrant {
+    function claim(uint256 paymentId) external payable onlyValidPayment(paymentId) onlyBusinessOwner(paymentId) nonReentrant {
         require(payments[paymentId].status == Status.CONFIRMED, "This payment needs to confirmed by client");
 
         payments[paymentId].status = Status.CLAIMED;
