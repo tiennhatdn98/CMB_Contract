@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-// import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
@@ -45,6 +43,11 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      */
     uint256 public serviceFee;
 
+    /**
+     *  @notice lastPaymentId uint256 is the latest requested payment ID started by 0
+     */
+    uint256 public lastPaymentId;
+
     event RequestedPayment(uint256 indexed paymentId, address indexed bo, address indexed client, bytes32 data, uint256 amount);
     event Paid(uint256 indexed paymentId);
     event ConfirmedToRelease(uint256 indexed paymentId);
@@ -79,11 +82,6 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(payments[paymentId].status == Status.INITIAL, "This payment needs to initialized");
         _;
     }
-
-    // constructor(address _owner, uint256 _serviceFee) {
-    //     transferOwnership(_owner);
-    //     serviceFee = _serviceFee;
-    // }
 
     function initialize(address _owner, uint256 _serviceFee) public initializer {
         OwnableUpgradeable.__Ownable_init();
@@ -170,19 +168,18 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *  @dev    Anyone can call this function. 
      * 
      *          Name        Meaning 
-     *  @param  paymentId   ID of payment that needs to be updated 
      *  @param  client      Address of client 
      *  @param  data        Encrypt sensitive data
      *  @param  amount      Payment fee
      */
-    function requestPayment(uint256 paymentId, address client, bytes32 data, uint256 amount) external onlyValidAddress(client) {
+    function requestPayment(address client, bytes32 data, uint256 amount) external onlyValidAddress(client) {
         require(
             _msgSender() != client, 
             "Business Owner and Client can not be same"
         );
 
-        payments[paymentId] = Payment(_msgSender(), client, data, amount, Status.INITIAL);
-        emit RequestedPayment(paymentId, _msgSender(), client, data, amount);
+        payments[++lastPaymentId] = Payment(_msgSender(), client, data, amount, Status.INITIAL);
+        emit RequestedPayment(lastPaymentId, _msgSender(), client, data, amount);
     }
 
     /** 
