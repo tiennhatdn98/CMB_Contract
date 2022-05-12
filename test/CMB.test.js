@@ -13,21 +13,10 @@ const BEGINNING_PAYMENT_ID = 1;
 const NOT_EXISTED_PAYMENT_ID = 9999;
 
 const provider = ethers.provider;
+const getTransactionFee = require('../utils/getTransactionFee');
 
 const chai = require('chai');
 chai.use(require('chai-bignumber')());
-
-async function getTransactionFee(transaction, contract) {
-  const txNormal = await provider.getTransaction(transaction.hash);
-
-  const receipt = await transaction.wait();
-
-  const gasUsed = receipt.gasUsed;
-  const gasPrice = txNormal.gasPrice;
-  const txFee = gasUsed.mul(gasPrice);
-
-  return txFee;
-}
 
 describe('CMB - Unit test', () => {
   beforeEach(async () => {

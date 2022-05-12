@@ -8,23 +8,12 @@ const CONFIRMED_STATUS = 2;
 const CLAIMED_STATUS = 3;
 const BEGINNING_PAYMENT_ID = 1;
 
-const provider = waffle.provider;
+const provider = ethers.provider;
+const getTransactionFee = require('../utils/getTransactionFee');
 
 const chai = require('chai');
 const BN = require('bn.js');
 chai.use(require('chai-bn')(BN));
-
-async function getTransactionFee(transaction, contract) {
-  const txNormal = await provider.getTransaction(transaction.hash);
-
-  const receipt = await transaction.wait();
-
-  const gasUsed = receipt.gasUsed;
-  const gasPrice = txNormal.gasPrice;
-  const txFee = gasUsed.mul(gasPrice);
-
-  return txFee;
-}
 
 describe('CMB - Integration test', () => {
   beforeEach(async () => {
@@ -171,7 +160,7 @@ describe('CMB - Integration test', () => {
       expect(totalFeeAfter).to.equal(totalFeeBefore.add(serviceFee.mul(3)));
     });
 
-    describe('After 3 client confirm to release to money', async () => {
+    describe('After 3 clients confirm to release to money', async () => {
       beforeEach(async () => {
         await cmbContract
           .connect(client1)
