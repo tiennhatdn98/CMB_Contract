@@ -95,17 +95,11 @@ describe('CMB - Unit test', () => {
         cmbContract.address,
       );
 
-      const serviceFeeTotalBefore = await cmbContract.serviceFeeTotal();
-
-      // const totalFeeNeedToPay = amount.add(serviceFee);
       const transaction = await cmbContract
         .connect(client)
         .pay(lastPaymentId, { value: amount });
 
       const payment = await cmbContract.payments(lastPaymentId);
-      const serviceFee = await cmbContract.calculateServiceFee(payment.amount);
-
-      const serviceFeeTotalAfter = await cmbContract.serviceFeeTotal();
 
       const balanceOfContractAfter = await provider.getBalance(
         cmbContract.address,
@@ -115,9 +109,6 @@ describe('CMB - Unit test', () => {
       const txFee = await getTransactionFee(transaction, cmbContract);
 
       expect(await payment.status).to.equal(PAID_STATUS);
-      expect(serviceFeeTotalAfter).to.equal(
-        serviceFeeTotalBefore.add(serviceFee),
-      );
       expect(balanceOfClientAfter).to.equal(
         balanceOfClientBefore.sub(amount).sub(txFee),
       );
@@ -203,12 +194,14 @@ describe('CMB - Unit test', () => {
       const balanceOfContractBefore = await provider.getBalance(
         cmbContract.address,
       );
+      const serviceFeeTotalBefore = await cmbContract.serviceFeeTotal();
 
       await cmbContract.connect(client).confirmToRelease(lastPaymentId);
       const transaction = await cmbContract.connect(bo).claim(lastPaymentId);
 
       const txFee = await getTransactionFee(transaction, cmbContract);
 
+      const serviceFeeTotalAfter = await cmbContract.serviceFeeTotal();
       const balanceOfBoAfter = await provider.getBalance(bo.address);
       const balanceOfContractAfter = await provider.getBalance(
         cmbContract.address,
@@ -224,6 +217,9 @@ describe('CMB - Unit test', () => {
       );
       expect(balanceOfContractAfter).to.equal(
         balanceOfContractBefore.sub(receivedAmount),
+      );
+      expect(serviceFeeTotalAfter).to.equal(
+        serviceFeeTotalBefore.add(serviceFee),
       );
       expect(cmbContract).to.emit('Claimed');
     });
@@ -255,6 +251,8 @@ describe('CMB - Unit test', () => {
         .requestPayment(client.address, data, amount);
       lastPaymentId = cmbContract.lastPaymentId();
       await cmbContract.connect(client).pay(lastPaymentId, { value: amount });
+      await cmbContract.connect(client).confirmToRelease(lastPaymentId);
+      await cmbContract.connect(bo).claim(lastPaymentId);
 
       serviceFeeTotal = await cmbContract.serviceFeeTotal();
     });

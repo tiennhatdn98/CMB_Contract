@@ -251,11 +251,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
             "Not enough fee according to payment"
         );
 
-        uint256 amount = payments[paymentId].amount;
-        uint256 serviceFee = calculateServiceFee(amount);
-
         payments[paymentId].status = Status.PAID;
-        serviceFeeTotal += serviceFee;
         emit Paid(paymentId);
     }
 
@@ -302,6 +298,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         uint256 amount = payments[paymentId].amount;
         uint256 serviceFee = calculateServiceFee(amount);
         payments[paymentId].status = Status.CLAIMED;
+        serviceFeeTotal += serviceFee;
         payable(_msgSender()).transfer(amount - serviceFee);
         emit Claimed(paymentId);
     }
@@ -322,6 +319,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         payable 
         onlyOwner 
         onlyValidAddress(_fundingReceiver) 
+        nonReentrant
     {
         require(_amount > 0, "Amount must be greater than 0");
         require(_amount <= serviceFeeTotal, "Not enough to withdraw");
