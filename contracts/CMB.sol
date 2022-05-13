@@ -19,13 +19,14 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     /**
-     *  Status enum
+     *  Status enum is status of a payment
+     *
      *          Suit                                Value
      *           |                                    |
      *  After Business Owner requests payment       REQUESTING
      *  After Client escrows money                  PAID
      *  After Client confirms to release money      CONFIRMED
-     *  After Business Owner claims money           CLAIMED
+     *  After Business Owner claims payment         CLAIMED
      */
     enum Status { REQUESTING, PAID, CONFIRMED, CLAIMED }
 
@@ -42,19 +43,25 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /**
      *  @notice serviceFee uint256 is service fee of each payment
      */
-    uint256 public serviceFee;
+    uint256 public serviceFeePercent;
 
     /**
      *  @notice lastPaymentId uint256 is the latest requested payment ID started by 1
      */
     uint256 public lastPaymentId;
 
+    /**
+     *  @notice WEIGHT_DECIMAL uint256 constant is the weight decimal to avoid float number when calculating service fee by percentage
+     */
+    uint256 private constant WEIGHT_DECIMAL = 1e6;
+
     event RequestedPayment(
         uint256 indexed paymentId, 
         address indexed bo, 
         address indexed client, 
         bytes32 data, 
-    uint256 amount);
+        uint256 amount
+    );
     event Paid(uint256 indexed paymentId);
     event ConfirmedToRelease(uint256 indexed paymentId);
     event Claimed(uint256 indexed paymentId);
@@ -63,7 +70,7 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     event SetClient(address oldClient, address newClient);
     event SetData(bytes32 oldData, bytes32 newData);
     event SetAmount(uint256 oldAmount, uint256 newAmount);
-    event SetServiceFee(uint256 oldAmount, uint256 newAmount);
+    event ServiceFeePercent(uint256 oldAmount, uint256 newAmount);
 
     modifier onlyValidAddress(address _address) {
         uint32 size;
@@ -97,10 +104,10 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /**
      *  @notice Initialize new logic contract.
      */
-    function initialize(address _owner, uint256 _serviceFee) public initializer {
+    function initialize(address _owner) public initializer {
         OwnableUpgradeable.__Ownable_init();
         transferOwnership(_owner);
-        serviceFee = _serviceFee;
+        serviceFeePercent = 15 * WEIGHT_DECIMAL / 10;
     }
 
     /** 
@@ -123,14 +130,16 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * 
      *  @dev    Only owner can call this function. 
      * 
-     *          Name        Meaning 
-     *  @param  _amount     Amount of service fee that want to be updated
+     *          Name                    Meaning 
+     *  @param  newSeriveFeePercent     New service fee percent that want to be updated
+     *  
+     *  Emit event {ServiceFeePercent}
      */ 
-    function setServiceFee(uint256 _amount) external onlyOwner {
-        require(_amount > 0, "Service fee must be greather than 0");
-        uint256 oldAmount = serviceFee;
-        serviceFee = _amount;
-        emit SetServiceFee(oldAmount, _amount);
+    function setServiceFeePercent(uint256 newSeriveFeePercent) external onlyOwner {
+        require(newSeriveFeePercent > 0, "Service fee percentage must be greather than 0");
+        uint256 oldAmount = serviceFeePercent;
+        serviceFeePercent = newSeriveFeePercent * WEIGHT_DECIMAL;
+        emit ServiceFeePercent(oldAmount, newSeriveFeePercent);
     }
 
     /** 
@@ -140,17 +149,19 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
+     *  
+     *  Emit event {SetClient}
      */ 
-    function setClient(uint256 paymentId, address _client) 
+    function setClient(uint256 paymentId, address newClient) 
         external 
         onlyValidPayment(paymentId) 
         onlyBusinessOwner(paymentId) 
         onlyRequestingPayment(paymentId) 
-        onlyValidAddress(_client) 
+        onlyValidAddress(newClient) 
     {
         address oldClient = payments[paymentId].client;
-        payments[paymentId].client = _client;
-        emit SetClient(oldClient, _client);
+        payments[paymentId].client = newClient;
+        emit SetClient(oldClient, newClient);
     }
 
     /** 
@@ -160,16 +171,18 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
+     *
+     *  Emit event {SetData}
      */ 
-    function setData(uint256 paymentId, bytes32 _data) 
+    function setData(uint256 paymentId, bytes32 newData) 
         external 
         onlyValidPayment(paymentId) 
         onlyBusinessOwner(paymentId) 
         onlyRequestingPayment(paymentId) 
     {
         bytes32 oldData = payments[paymentId].data;
-        payments[paymentId].data = _data;
-        emit SetData(oldData, _data);
+        payments[paymentId].data = newData;
+        emit SetData(oldData, newData);
     }
 
     /** 
@@ -179,17 +192,19 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated 
+     *
+     *  Emit event {SetAmount}
      */ 
-    function setAmount(uint256 paymentId, uint256 _amount) 
+    function setAmount(uint256 paymentId, uint256 newAmount) 
         external 
         onlyValidPayment(paymentId) 
         onlyBusinessOwner(paymentId) 
         onlyRequestingPayment(paymentId) 
     {
-        require(_amount > 0, "Amount must be greater than 0");
+        require(newAmount > 0, "Amount must be greater than 0");
         uint256 oldAmount = payments[paymentId].amount;
-        payments[paymentId].amount = _amount;
-        emit SetAmount(oldAmount, _amount);
+        payments[paymentId].amount = newAmount;
+        emit SetAmount(oldAmount, newAmount);
     }
 
     /** 
@@ -201,6 +216,8 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
      *  @param  client      Address of client 
      *  @param  data        Encrypt sensitive data
      *  @param  amount      Payment fee
+     *
+     *  Emit event {RequestedPayment}
      */
     function requestPayment(address client, bytes32 data, uint256 amount) external onlyValidAddress(client) {
         require(
@@ -213,12 +230,14 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     /** 
-     *  @notice Client make payment
+     *  @notice Client make payment by payment ID
      * 
      *  @dev    Only Client can call this function. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
+     *
+     *  Emit event {Paid}
      */
     function pay(uint256 paymentId) 
         external 
@@ -228,9 +247,12 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         nonReentrant 
     {
         require(
-            msg.value == payments[paymentId].amount + serviceFee, 
+            msg.value == payments[paymentId].amount, 
             "Not enough fee according to payment"
         );
+
+        uint256 amount = payments[paymentId].amount;
+        uint256 serviceFee = calculateServiceFee(amount);
 
         payments[paymentId].status = Status.PAID;
         serviceFeeTotal += serviceFee;
@@ -238,12 +260,14 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     /** 
-     *  @notice Client confirm to release money
+     *  @notice Client confirm to release money by payment ID
      * 
      *  @dev    Only Client can call this function. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
+     *
+     *  Emit event {ConfirmedToRelease}
      */
     function confirmToRelease(uint256 paymentId) 
         external 
@@ -257,12 +281,14 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     /** 
-     *  @notice Business Owner claim payment
+     *  @notice Business Owner claim payment by payment ID
      * 
      *  @dev    Only Business Owner can call this function. 
      * 
      *          Name        Meaning 
      *  @param  paymentId   ID of payment that needs to be updated
+     *
+     *  Emit event {Claimed}
      */
     function claim(uint256 paymentId) 
         external 
@@ -273,19 +299,23 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     {
         require(payments[paymentId].status == Status.CONFIRMED, "This payment needs to confirmed by client");
 
+        uint256 amount = payments[paymentId].amount;
+        uint256 serviceFee = calculateServiceFee(amount);
         payments[paymentId].status = Status.CLAIMED;
-        payable(_msgSender()).transfer(payments[paymentId].amount);
+        payable(_msgSender()).transfer(amount - serviceFee);
         emit Claimed(paymentId);
     }
 
     /** 
-     *  @notice Withdraw amount of service fee to specific address
+     *  @notice Withdraw `_amount` of service fee to `_fundingReceiver` address
      * 
      *  @dev    Only Owner can call this function. 
      * 
      *          Name                Meaning 
      *  @param  _amount             Amount of service fee that want to withdraw
      *  @param  _fundingReceiver    Address that want to transfer
+     *
+     *  Emit event {WithdrawnServiceFee}
      */
     function withdrawServiceFee(uint256 _amount, address _fundingReceiver) 
         external 
@@ -299,5 +329,19 @@ contract CMB is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         serviceFeeTotal -= _amount;
         payable(_fundingReceiver).transfer(_amount);
         emit WithdrawnServiceFee(_amount, _fundingReceiver);
+    }
+
+    /** 
+     *  @notice Calculate service fee by amount payment
+     * 
+     *  @dev    Service fee equal amount of payment mutiply serviceFeePercent. The actual service fee will be divided by WEIGHT_DECIMAL and 100
+     * 
+     *          Name                Meaning 
+     *  @param  amount              Amount of service fee that want to withdraw
+     */
+    function calculateServiceFee(uint256 amount) public view returns(uint256) {
+        uint256 serviceFee = (amount * serviceFeePercent) / (WEIGHT_DECIMAL * 100);
+
+        return serviceFee;
     }
 }
