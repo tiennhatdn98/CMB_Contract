@@ -8,6 +8,10 @@ const CONFIRMED_STATUS = 2;
 const CLAIMED_STATUS = 3;
 const BEGINNING_PAYMENT_ID = 1;
 
+const PAYMENT_ID_1 = 1;
+const PAYMENT_ID_2 = 2;
+const PAYMENT_ID_3 = 3;
+
 const provider = ethers.provider;
 const getTransactionFee = require('../utils/getTransactionFee');
 
@@ -101,18 +105,18 @@ describe('CMB - Integration test', () => {
 
       const transaction1 = await cmbContract
         .connect(client1)
-        .pay(1, { value: totalFeeNeedToPay });
+        .pay(PAYMENT_ID_1, { value: totalFeeNeedToPay });
 
       const txFee1 = await getTransactionFee(transaction1, cmbContract);
 
       const transaction2 = await cmbContract
         .connect(client2)
-        .pay(2, { value: totalFeeNeedToPay });
+        .pay(PAYMENT_ID_2, { value: totalFeeNeedToPay });
       const txFee2 = await getTransactionFee(transaction2, cmbContract);
 
-      const payment1 = await cmbContract.payments(1);
-      const payment2 = await cmbContract.payments(2);
-      const payment3 = await cmbContract.payments(3);
+      const payment1 = await cmbContract.payments(PAYMENT_ID_1);
+      const payment2 = await cmbContract.payments(PAYMENT_ID_2);
+      const payment3 = await cmbContract.payments(PAYMENT_ID_3);
 
       const totalFeeAfter = await cmbContract.serviceFeeTotal();
       const balanceOfClient1After = await provider.getBalance(client1.address);
@@ -137,17 +141,23 @@ describe('CMB - Integration test', () => {
       const totalFeeBefore = await cmbContract.serviceFeeTotal();
       const totalFeeNeedToPay = amount.add(serviceFee);
 
-      await cmbContract.connect(client1).pay(1, { value: totalFeeNeedToPay });
+      await cmbContract
+        .connect(client1)
+        .pay(PAYMENT_ID_1, { value: totalFeeNeedToPay });
       await cmbContract.connect(client1).confirmToRelease(1);
 
-      await cmbContract.connect(client2).pay(2, { value: totalFeeNeedToPay });
+      await cmbContract
+        .connect(client2)
+        .pay(PAYMENT_ID_2, { value: totalFeeNeedToPay });
       await cmbContract.connect(client2).confirmToRelease(2);
 
-      await cmbContract.connect(client3).pay(3, { value: totalFeeNeedToPay });
+      await cmbContract
+        .connect(client3)
+        .pay(PAYMENT_ID_3, { value: totalFeeNeedToPay });
 
-      const payment1 = await cmbContract.payments(1);
-      const payment2 = await cmbContract.payments(2);
-      const payment3 = await cmbContract.payments(3);
+      const payment1 = await cmbContract.payments(PAYMENT_ID_1);
+      const payment2 = await cmbContract.payments(PAYMENT_ID_2);
+      const payment3 = await cmbContract.payments(PAYMENT_ID_3);
 
       const totalFeeAfter = await cmbContract.serviceFeeTotal();
 
@@ -162,18 +172,18 @@ describe('CMB - Integration test', () => {
       beforeEach(async () => {
         await cmbContract
           .connect(client1)
-          .pay(1, { value: amount.add(serviceFee) });
-        await cmbContract.connect(client1).confirmToRelease(1);
+          .pay(PAYMENT_ID_1, { value: amount.add(serviceFee) });
+        await cmbContract.connect(client1).confirmToRelease(PAYMENT_ID_1);
 
         await cmbContract
           .connect(client2)
-          .pay(2, { value: amount.add(serviceFee) });
-        await cmbContract.connect(client2).confirmToRelease(2);
+          .pay(PAYMENT_ID_2, { value: amount.add(serviceFee) });
+        await cmbContract.connect(client2).confirmToRelease(PAYMENT_ID_2);
 
         await cmbContract
           .connect(client3)
-          .pay(3, { value: amount.add(serviceFee) });
-        await cmbContract.connect(client3).confirmToRelease(3);
+          .pay(PAYMENT_ID_3, { value: amount.add(serviceFee) });
+        await cmbContract.connect(client3).confirmToRelease(PAYMENT_ID_3);
 
         balanceOfBo1Before = await provider.getBalance(bo1.address);
         balanceOfBo2Before = await provider.getBalance(bo2.address);
@@ -182,7 +192,7 @@ describe('CMB - Integration test', () => {
       });
 
       it('Only business owner 1 claims payment', async () => {
-        const transaction = await cmbContract.connect(bo1).claim(1);
+        const transaction = await cmbContract.connect(bo1).claim(PAYMENT_ID_1);
 
         const balanceOfBo1After = await provider.getBalance(bo1.address);
         const balanceOfBo2After = await provider.getBalance(bo2.address);
@@ -190,9 +200,9 @@ describe('CMB - Integration test', () => {
         const txFee = await getTransactionFee(transaction, cmbContract);
         const serviceFeeTotalAfter = await cmbContract.serviceFeeTotal();
 
-        const payment1 = await cmbContract.payments(1);
-        const payment2 = await cmbContract.payments(2);
-        const payment3 = await cmbContract.payments(3);
+        const payment1 = await cmbContract.payments(PAYMENT_ID_1);
+        const payment2 = await cmbContract.payments(PAYMENT_ID_2);
+        const payment3 = await cmbContract.payments(PAYMENT_ID_3);
 
         expect(balanceOfBo1After).to.equal(
           balanceOfBo1Before.add(amount).sub(txFee),
@@ -206,9 +216,9 @@ describe('CMB - Integration test', () => {
       });
 
       it('Three business owners claim corresponding payment', async () => {
-        const transaction1 = await cmbContract.connect(bo1).claim(1);
-        const transaction2 = await cmbContract.connect(bo2).claim(2);
-        const transaction3 = await cmbContract.connect(bo3).claim(3);
+        const transaction1 = await cmbContract.connect(bo1).claim(PAYMENT_ID_1);
+        const transaction2 = await cmbContract.connect(bo2).claim(PAYMENT_ID_2);
+        const transaction3 = await cmbContract.connect(bo3).claim(PAYMENT_ID_3);
 
         const txFee1 = await getTransactionFee(transaction1, cmbContract);
         const txFee2 = await getTransactionFee(transaction2, cmbContract);
@@ -219,9 +229,9 @@ describe('CMB - Integration test', () => {
         const balanceOfBo3After = await provider.getBalance(bo3.address);
         const serviceFeeTotalAfter = await cmbContract.serviceFeeTotal();
 
-        const payment1 = await cmbContract.payments(1);
-        const payment2 = await cmbContract.payments(2);
-        const payment3 = await cmbContract.payments(3);
+        const payment1 = await cmbContract.payments(PAYMENT_ID_1);
+        const payment2 = await cmbContract.payments(PAYMENT_ID_2);
+        const payment3 = await cmbContract.payments(PAYMENT_ID_3);
 
         expect(balanceOfBo1After).to.equal(
           balanceOfBo1Before.add(amount).sub(txFee1),
@@ -337,7 +347,7 @@ describe('CMB - Integration test', () => {
     });
   });
 
-  it.only('Test flow', async () => {
+  it('Test flow', async () => {
     // Business Owners request payment
     await cmbContract
       .connect(bo1)
@@ -349,23 +359,23 @@ describe('CMB - Integration test', () => {
       .connect(bo3)
       .requestPayment(client3.address, data, amount);
 
-    let payment1 = await cmbContract.payments(1);
+    let payment1 = await cmbContract.payments(PAYMENT_ID_1);
     expect(payment1.status).to.equal(REQUESTING_STATUS);
     expect(payment1.data).to.equal(data);
     expect(payment1.amount).to.equal(amount);
-    expect(payment1.paymentId).to.equal(1);
+    expect(payment1.paymentId).to.equal(PAYMENT_ID_1);
 
-    let payment2 = await cmbContract.payments(1);
+    let payment2 = await cmbContract.payments(PAYMENT_ID_2);
     expect(payment2.status).to.equal(REQUESTING_STATUS);
     expect(payment2.data).to.equal(data);
     expect(payment2.amount).to.equal(amount);
-    expect(payment2.paymentId).to.equal(1);
+    expect(payment2.paymentId).to.equal(PAYMENT_ID_2);
 
-    let payment3 = await cmbContract.payments(1);
+    let payment3 = await cmbContract.payments(PAYMENT_ID_3);
     expect(payment3.status).to.equal(REQUESTING_STATUS);
     expect(payment3.data).to.equal(data);
     expect(payment3.amount).to.equal(amount);
-    expect(payment3.paymentId).to.equal(1);
+    expect(payment3.paymentId).to.equal(PAYMENT_ID_3);
 
     // Clients make Payment
     const serviceFeeNeedToPay = amount.add(serviceFee);
@@ -376,13 +386,13 @@ describe('CMB - Integration test', () => {
 
     const payTx1 = await cmbContract
       .connect(client1)
-      .pay(1, { value: serviceFeeNeedToPay });
+      .pay(PAYMENT_ID_1, { value: serviceFeeNeedToPay });
     const payTx2 = await cmbContract
       .connect(client2)
-      .pay(2, { value: serviceFeeNeedToPay });
+      .pay(PAYMENT_ID_2, { value: serviceFeeNeedToPay });
     const payTx3 = await cmbContract
       .connect(client3)
-      .pay(3, { value: serviceFeeNeedToPay });
+      .pay(PAYMENT_ID_3, { value: serviceFeeNeedToPay });
 
     const payTxFee1 = await getTransactionFee(payTx1, cmbContract);
     const payTxFee2 = await getTransactionFee(payTx2, cmbContract);
@@ -402,13 +412,13 @@ describe('CMB - Integration test', () => {
       balanceOfClient3BeforePay.sub(serviceFeeNeedToPay).sub(payTxFee3),
     );
 
-    payment1 = await cmbContract.payments(1);
+    payment1 = await cmbContract.payments(PAYMENT_ID_1);
     expect(payment1.status).to.equal(PAID_STATUS);
 
-    payment2 = await cmbContract.payments(1);
+    payment2 = await cmbContract.payments(PAYMENT_ID_2);
     expect(payment2.status).to.equal(PAID_STATUS);
 
-    payment3 = await cmbContract.payments(1);
+    payment3 = await cmbContract.payments(PAYMENT_ID_3);
     expect(payment3.status).to.equal(PAID_STATUS);
 
     // Clients confirm to release money
@@ -416,13 +426,13 @@ describe('CMB - Integration test', () => {
     await cmbContract.connect(client2).confirmToRelease(2);
     await cmbContract.connect(client3).confirmToRelease(3);
 
-    payment1 = await cmbContract.payments(1);
+    payment1 = await cmbContract.payments(PAYMENT_ID_1);
     expect(payment1.status).to.equal(CONFIRMED_STATUS);
 
-    payment2 = await cmbContract.payments(1);
+    payment2 = await cmbContract.payments(PAYMENT_ID_2);
     expect(payment2.status).to.equal(CONFIRMED_STATUS);
 
-    payment3 = await cmbContract.payments(1);
+    payment3 = await cmbContract.payments(PAYMENT_ID_3);
     expect(payment3.status).to.equal(CONFIRMED_STATUS);
 
     // Business Owners claim payment
@@ -430,9 +440,9 @@ describe('CMB - Integration test', () => {
     const balanceOfBo2BeforeClaim = await provider.getBalance(bo2.address);
     const balanceOfBo3BeforeClaim = await provider.getBalance(bo3.address);
 
-    const claimTx1 = await cmbContract.connect(bo1).claim(1);
-    const claimTx2 = await cmbContract.connect(bo2).claim(2);
-    const claimTx3 = await cmbContract.connect(bo3).claim(3);
+    const claimTx1 = await cmbContract.connect(bo1).claim(PAYMENT_ID_1);
+    const claimTx2 = await cmbContract.connect(bo2).claim(PAYMENT_ID_2);
+    const claimTx3 = await cmbContract.connect(bo3).claim(PAYMENT_ID_3);
 
     const claimTxFee1 = await getTransactionFee(claimTx1, cmbContract);
     const claimTxFee2 = await getTransactionFee(claimTx2, cmbContract);
@@ -452,16 +462,16 @@ describe('CMB - Integration test', () => {
       balanceOfBo3BeforeClaim.add(amount).sub(claimTxFee3),
     );
 
-    payment1 = await cmbContract.payments(1);
+    payment1 = await cmbContract.payments(PAYMENT_ID_1);
     expect(payment1.status).to.equal(CLAIMED_STATUS);
 
-    payment2 = await cmbContract.payments(1);
+    payment2 = await cmbContract.payments(PAYMENT_ID_2);
     expect(payment2.status).to.equal(CLAIMED_STATUS);
 
-    payment3 = await cmbContract.payments(1);
+    payment3 = await cmbContract.payments(PAYMENT_ID_3);
     expect(payment3.status).to.equal(CLAIMED_STATUS);
 
-    // Owner withdraw service fee total
+    // Owner withdraw service fee total to 2 wallets
     const balanceOfReceiverBeforeWithdraw = await provider.getBalance(
       fundingReceiver1.address,
     );
@@ -473,14 +483,16 @@ describe('CMB - Integration test', () => {
     const firstWithdrawnAmount = serviceFeeTotal.div(2);
     const secondWithdrawnAmount = serviceFeeTotal.sub(firstWithdrawnAmount);
 
-    await cmbContract
+    const withdrawTx1 = await cmbContract
       .connect(owner)
       .withdrawServiceFee(firstWithdrawnAmount, fundingReceiver1.address);
 
-    const withdrawTx = await cmbContract
+    const withdrawTx2 = await cmbContract
       .connect(owner)
       .withdrawServiceFee(secondWithdrawnAmount, owner.address);
-    const withdrawTxFee = await getTransactionFee(withdrawTx, cmbContract);
+
+    const withdrawTxFee1 = await getTransactionFee(withdrawTx1, cmbContract);
+    const withdrawTxFee2 = await getTransactionFee(withdrawTx2, cmbContract);
 
     const balanceOfReceiverAfterWithdraw = await provider.getBalance(
       fundingReceiver1.address,
@@ -489,18 +501,14 @@ describe('CMB - Integration test', () => {
       owner.address,
     );
 
-    console.log(balanceOfOwnerBeforeWithdraw);
-    console.log(balanceOfOwnerAfterWithdraw);
-    console.log(secondWithdrawnAmount);
-    console.log(withdrawTxFee);
-
     expect(balanceOfReceiverAfterWithdraw).to.equal(
       balanceOfReceiverBeforeWithdraw.add(firstWithdrawnAmount),
     );
     expect(balanceOfOwnerAfterWithdraw).to.equal(
       balanceOfOwnerBeforeWithdraw
         .add(secondWithdrawnAmount)
-        .sub(withdrawTxFee),
+        .sub(withdrawTxFee1)
+        .sub(withdrawTxFee2),
     );
     expect(await cmbContract.serviceFeeTotal()).to.equal(0);
   });
