@@ -22,22 +22,20 @@ const config = {
   defaultNetwork: 'hardhat',
   networks: {
     hardhat: { accounts: { count: 100 } },
-    testnet: {
-      url: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
-      accounts: [process.env.DEPLOY_ACCOUNT2],
-    },
-    rinkeby: {
-      url: `https://rinkeby.infura.io/v3/e4ab2ea833074771bb6b5cfa1d28955f`,
+    avaxTestnet: {
+      url: `https://api.avax-test.network/ext/bc/C/rpc`,
+      chainId: 43113,
       accounts: [process.env.DEPLOY_ACCOUNT],
     },
-    mainnet: {
-      url: 'https://bsc-dataseed1.ninicoin.io',
+    avaxMainnet: {
+      url: 'https://api.avax.network/ext/bc/C/rpc',
+      chainId: 43113,
       accounts: [process.env.DEPLOY_ACCOUNT],
       gasPrice: 8000000000,
     },
   },
   etherscan: {
-    apiKey: process.env.BINANCE_API_KEY,
+    apiKey: process.env.SNOWTRACE_API_KEY,
   },
   solidity: {
     compilers: [

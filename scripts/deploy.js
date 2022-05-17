@@ -28,7 +28,7 @@ async function main() {
   // await cmbContract.deployed();
   // console.log('CMB contract deployed at: ', cmbContract.address);
 
-  const cmbProxy = await upgrades.deployProxy(CMB, [bo, serviceFee]);
+  const cmbProxy = await upgrades.deployProxy(CMB, [bo]);
   await cmbProxy.deployed();
   console.log('CMB proxy deployed at: ', cmbProxy.address);
 
