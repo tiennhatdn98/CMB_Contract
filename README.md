@@ -1,6 +1,6 @@
 # CMB Smart Contract
 
-Development for escrow
+Development for escrowing
 
 ## Development
 
