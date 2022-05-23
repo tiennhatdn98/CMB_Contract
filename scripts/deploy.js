@@ -45,6 +45,7 @@ async function main() {
     cmbVerify: cmbVerify,
   };
 
+  // Write detail address to contrats.json
   await fs.writeFileSync('contracts.json', JSON.stringify(contractAddresses));
 }
 
